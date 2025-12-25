@@ -1,67 +1,70 @@
-import { build as esbuild } from "esbuild";
-import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { execSync } from 'child_process';
+import { build } from 'esbuild';
+import path from 'path';
+import fs from 'fs';
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
-const allowlist = [
-  "@google/generative-ai",
-  "axios",
-  "connect-pg-simple",
-  "cors",
-  "date-fns",
-  "drizzle-orm",
-  "drizzle-zod",
-  "express",
-  "express-rate-limit",
-  "express-session",
-  "jsonwebtoken",
-  "memorystore",
-  "multer",
-  "nanoid",
-  "nodemailer",
-  "openai",
-  "passport",
-  "passport-local",
-  "pg",
-  "stripe",
-  "uuid",
-  "ws",
-  "xlsx",
-  "zod",
-  "zod-validation-error",
-];
+const frontendDir = path.join(process.cwd(), 'frontend');
+const backendDir = path.join(process.cwd(), 'backend');
 
-async function buildAll() {
-  await rm("dist", { recursive: true, force: true });
+async function main() {
+  console.log('Building frontend...');
+  
+  try {
+    execSync('npm install', { 
+      cwd: frontendDir, 
+      stdio: 'inherit' 
+    });
+    
+    execSync('npm run build', { 
+      cwd: frontendDir, 
+      stdio: 'inherit' 
+    });
+    
+    console.log('Frontend build completed successfully!');
+  } catch (error) {
+    console.error('Frontend build failed:', error);
+    process.exit(1);
+  }
 
-  console.log("building client...");
-  await viteBuild();
+  console.log('Building Go backend (static binary)...');
+  
+  try {
+    execSync('go build -buildvcs=false -ldflags="-s -w" -o bin/api ./cmd/api', {
+      cwd: backendDir,
+      stdio: 'inherit',
+      env: { 
+        ...process.env, 
+        HOME: '/tmp',
+        CGO_ENABLED: '0',
+        GOOS: 'linux',
+        GOARCH: 'amd64'
+      }
+    });
+    console.log('Go backend build completed successfully!');
+  } catch (error) {
+    console.error('Go backend build failed:', error);
+    process.exit(1);
+  }
 
-  console.log("building server...");
-  const pkg = JSON.parse(await readFile("package.json", "utf-8"));
-  const allDeps = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
-  ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  console.log('Building server bundle...');
+  
+  try {
+    await build({
+      entryPoints: ['server/index.ts'],
+      bundle: true,
+      platform: 'node',
+      target: 'node20',
+      format: 'cjs',
+      outfile: 'dist/index.cjs',
+      external: ['pg-native'],
+    });
+    console.log('Server bundle completed successfully!');
+  } catch (error) {
+    console.error('Server bundle failed:', error);
+    process.exit(1);
+  }
 
-  await esbuild({
-    entryPoints: ["server/index.ts"],
-    platform: "node",
-    bundle: true,
-    format: "cjs",
-    outfile: "dist/index.cjs",
-    define: {
-      "process.env.NODE_ENV": '"production"',
-    },
-    minify: true,
-    external: externals,
-    logLevel: "info",
-  });
+  console.log('Build completed!');
 }
 
-buildAll().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main();

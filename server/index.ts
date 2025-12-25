@@ -1,98 +1,74 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
-import { createServer } from "http";
+import { spawn, ChildProcess } from 'child_process';
+import { parse } from 'url';
+import path from 'path';
+import fs from 'fs';
 
-const app = express();
-const httpServer = createServer(app);
+const parseDbUrl = () => {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) return;
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
+  try {
+    const url = new URL(dbUrl);
+    process.env.DB_USER = url.username;
+    process.env.DB_PASSWORD = url.password;
+    process.env.DB_HOST = url.hostname;
+    process.env.DB_PORT = url.port || '5432';
+    process.env.DB_NAME = url.pathname.slice(1).split('?')[0];
+    process.env.DB_SSL_MODE = process.env.NODE_ENV === 'production' ? 'require' : 'disable';
+  } catch (e) {
+    console.error('Failed to parse DATABASE_URL:', e);
   }
-}
+};
 
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
+const startGoBackend = (): ChildProcess => {
+  parseDbUrl();
 
-app.use(express.urlencoded({ extended: false }));
+  const backendDir = path.resolve(process.cwd(), 'backend');
+  const binaryPath = path.join(backendDir, 'bin', 'api');
 
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
+  console.log('Starting Cleaners AI Go Backend...');
+  console.log(`Working directory: ${backendDir}`);
+  console.log(`Binary path: ${binaryPath}`);
+  console.log(`DB_HOST: ${process.env.DB_HOST}`);
+  console.log(`DB_PORT: ${process.env.DB_PORT}`);
+  console.log(`DB_NAME: ${process.env.DB_NAME}`);
+  console.log(`DB_SSL_MODE: ${process.env.DB_SSL_MODE}`);
+  console.log(`SERVER_PORT: ${process.env.SERVER_PORT || '5000'}`);
+
+  if (!fs.existsSync(binaryPath)) {
+    console.error(`Go binary not found at: ${binaryPath}`);
+    console.error('Please run "npm run build" first to compile the Go backend.');
+    process.exit(1);
+  }
+
+  const backend = spawn(binaryPath, [], {
+    cwd: backendDir,
+    env: process.env as NodeJS.ProcessEnv,
+    stdio: 'inherit',
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
+  backend.on('error', (err) => {
+    console.error('Go backend failed to start:', err.message);
+    process.exit(1);
+  });
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  backend.on('exit', (code) => {
+    console.log(`Go backend exited with code ${code}`);
+    process.exit(code || 0);
+  });
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  return backend;
+};
+
+const handleSignals = (backend: ChildProcess) => {
+  const cleanup = () => {
+    console.log('\nShutting down...');
+    backend.kill('SIGTERM');
   };
 
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+};
 
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
-(async () => {
-  await registerRoutes(httpServer, app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
-})();
+const backend = startGoBackend();
+handleSignals(backend);
