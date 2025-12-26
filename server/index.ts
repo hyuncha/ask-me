@@ -4,8 +4,26 @@ import path from 'path';
 import fs from 'fs';
 
 const parseDbUrl = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // First, try to use Replit's PG* environment variables directly
+  if (process.env.PGHOST && !process.env.DB_HOST) {
+    process.env.DB_HOST = process.env.PGHOST;
+    process.env.DB_PORT = process.env.PGPORT || '5432';
+    process.env.DB_USER = process.env.PGUSER || 'postgres';
+    process.env.DB_PASSWORD = process.env.PGPASSWORD || '';
+    process.env.DB_NAME = process.env.PGDATABASE || 'postgres';
+    process.env.DB_SSL_MODE = isProduction ? 'require' : 'disable';
+    console.log(`Using Replit PG* environment variables (SSL: ${process.env.DB_SSL_MODE})`);
+    return;
+  }
+
+  // Fallback to parsing DATABASE_URL
   const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) return;
+  if (!dbUrl) {
+    console.warn('No DATABASE_URL or PGHOST found');
+    return;
+  }
 
   try {
     const url = new URL(dbUrl);
@@ -15,6 +33,7 @@ const parseDbUrl = () => {
     process.env.DB_PORT = url.port || '5432';
     process.env.DB_NAME = url.pathname.slice(1).split('?')[0];
     process.env.DB_SSL_MODE = process.env.NODE_ENV === 'production' ? 'require' : 'disable';
+    console.log('Parsed DATABASE_URL successfully');
   } catch (e) {
     console.error('Failed to parse DATABASE_URL:', e);
   }

@@ -85,7 +85,7 @@ func Load() (*Config, error) {
                         User:     getEnvWithFallback("DB_USER", "PGUSER", "postgres"),
                         Password: getEnvWithFallback("DB_PASSWORD", "PGPASSWORD", ""),
                         DBName:   getEnvWithFallback("DB_NAME", "PGDATABASE", "cleaners_ai"),
-                        SSLMode:  getEnv("DB_SSL_MODE", "require"),
+                        SSLMode:  getEnv("DB_SSL_MODE", "disable"),
                 },
                 Redis: RedisConfig{
                         Host:     getEnv("REDIS_HOST", "localhost"),
