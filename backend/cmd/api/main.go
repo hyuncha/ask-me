@@ -53,6 +53,13 @@ func main() {
                         "host", cfg.Database.Host,
                         "database", cfg.Database.DBName,
                 )
+
+                // Run database migrations
+                if err := db.RunMigrations(); err != nil {
+                        log.Warn("Failed to run database migrations", "error", err)
+                } else {
+                        log.Info("Database migrations completed successfully")
+                }
         }
 
         // Initialize LLM client
