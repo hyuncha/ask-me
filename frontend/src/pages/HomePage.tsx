@@ -128,15 +128,22 @@ const HomePage: React.FC = () => {
       };
 
       setMessages(prev => [...prev, botResponse]);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      
+      const errorText = error?.message || '알 수 없는 오류가 발생했습니다.';
       const errorMessage: Message = {
         id: messages.length + 2,
-        text: '죄송합니다. 오류가 발생했습니다. 나중에 다시 시도해주세요.',
+        text: `죄송합니다. 오류가 발생했습니다: ${errorText}`,
         sender: 'bot',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-      console.error('Error sending message:', error);
     } finally {
       setIsLoading(false);
     }
