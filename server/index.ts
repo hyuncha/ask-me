@@ -42,17 +42,33 @@ const parseDbUrl = () => {
 const startGoBackend = (): ChildProcess => {
   parseDbUrl();
 
-  const backendDir = path.resolve(process.cwd(), 'backend');
+  const cwd = process.cwd();
+  const backendDir = path.resolve(cwd, 'backend');
   const binaryPath = path.join(backendDir, 'bin', 'api');
+  const staticDir = path.resolve(cwd, 'frontend', 'build');
+
+  // Set STATIC_DIR for Go backend
+  if (!process.env.STATIC_DIR) {
+    process.env.STATIC_DIR = staticDir;
+  }
+
+  // Map OPENAI_API_KEY to LLM_API_KEY if not set
+  if (!process.env.LLM_API_KEY && process.env.OPENAI_API_KEY) {
+    process.env.LLM_API_KEY = process.env.OPENAI_API_KEY;
+  }
 
   console.log('Starting Cleaners AI Go Backend...');
-  console.log(`Working directory: ${backendDir}`);
+  console.log(`Current working directory: ${cwd}`);
+  console.log(`Backend directory: ${backendDir}`);
   console.log(`Binary path: ${binaryPath}`);
+  console.log(`Static directory: ${process.env.STATIC_DIR}`);
+  console.log(`Static dir exists: ${fs.existsSync(process.env.STATIC_DIR)}`);
   console.log(`DB_HOST: ${process.env.DB_HOST}`);
   console.log(`DB_PORT: ${process.env.DB_PORT}`);
   console.log(`DB_NAME: ${process.env.DB_NAME}`);
   console.log(`DB_SSL_MODE: ${process.env.DB_SSL_MODE}`);
   console.log(`SERVER_PORT: ${process.env.SERVER_PORT || '5000'}`);
+  console.log(`LLM_API_KEY set: ${!!process.env.LLM_API_KEY}`);
 
   if (!fs.existsSync(binaryPath)) {
     console.error(`Go binary not found at: ${binaryPath}`);
