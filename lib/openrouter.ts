@@ -75,8 +75,28 @@ export async function sendMessage(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    console.error('OpenRouter raw error:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText,
+    });
+
+    // 에러 유형별 구체적 메시지
+    let userMessage = '';
+    if (response.status === 401) {
+      userMessage = 'API 키가 유효하지 않습니다. OpenRouter API 키를 확인해주세요.';
+    } else if (response.status === 402) {
+      userMessage = 'OpenRouter 크레딧이 부족합니다. 크레딧을 충전해주세요.';
+    } else if (response.status === 429) {
+      userMessage = '요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+    } else if (response.status === 400) {
+      userMessage = '잘못된 요청입니다. 모델명을 확인해주세요.';
+    } else {
+      userMessage = `OpenRouter 오류가 발생했습니다 (${response.status})`;
+    }
+
+    throw new Error(`OPENROUTER_ERROR:${response.status}:${userMessage}`);
   }
 
   const data: OpenRouterResponse = await response.json();
