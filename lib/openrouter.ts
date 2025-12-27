@@ -41,21 +41,22 @@ export async function sendMessage(
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
-  // 환경 변수 디버깅 로그
-  console.log('[OpenRouter] API Key exists:', !!apiKey);
-  console.log('[OpenRouter] API Key length:', apiKey?.length || 0);
-  console.log('[OpenRouter] API Key prefix:', apiKey?.substring(0, 10) || 'N/A');
-  console.log('[OpenRouter] Model:', model);
+  // 환경 변수 디버깅 - 실제 값 앞 20자 출력 (디버깅용)
+  console.log('=== OPENROUTER DEBUG START ===');
+  console.log('Raw API Key (first 20 chars):', apiKey?.substring(0, 20) || 'EMPTY');
+  console.log('API Key length:', apiKey?.length || 0);
+  console.log('Starts with sk-or-:', apiKey?.startsWith('sk-or-'));
+  console.log('=== OPENROUTER DEBUG END ===');
 
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY_MISSING');
   }
 
-  // API 키 형식 검증
-  if (!apiKey.startsWith('sk-or-')) {
-    console.error('[OpenRouter] Invalid API key format. Expected sk-or-...');
-    throw new Error('OPENROUTER_ERROR:401:API 키 형식이 올바르지 않습니다. sk-or-로 시작해야 합니다.');
-  }
+  // API 키 형식 검증 제거 - 일단 API 호출 시도
+  // if (!apiKey.startsWith('sk-or-')) {
+  //   console.error('[OpenRouter] Invalid API key format. Expected sk-or-...');
+  //   throw new Error('OPENROUTER_ERROR:401:API 키 형식이 올바르지 않습니다. sk-or-로 시작해야 합니다.');
+  // }
 
   const systemPrompt = context
     ? `${LAUNDRY_MASTER_PROMPT}\n\n## 관련 세탁 지식 (검색 결과):\n${context}`
