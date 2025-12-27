@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yourusername/cleaners-ai/internal/application/service"
-	"github.com/yourusername/cleaners-ai/internal/infrastructure/persistence"
+	"cleaners-ai/internal/application/service"
+	"cleaners-ai/internal/infrastructure/persistence"
 )
 
 type ChatHandler struct {
@@ -31,13 +31,25 @@ func NewChatHandler(
 
 type SendMessageRequest struct {
 	Message        string  `json:"message"`
+	Location       *string `json:"location,omitempty"`
 	ConversationID *string `json:"conversation_id,omitempty"`
+	SessionID      *string `json:"session_id,omitempty"`
+}
+
+// RecommendedShop represents a partner cleaner shop
+type RecommendedShop struct {
+	Name       string   `json:"name"`
+	Zipcode    string   `json:"zipcode"`
+	Priority   string   `json:"priority"`
+	Rating     float64  `json:"rating,omitempty"`
+	Specialties []string `json:"specialties,omitempty"`
 }
 
 type SendMessageResponse struct {
-	Message        string `json:"message"`
-	ConversationID string `json:"conversation_id"`
-	Timestamp      string `json:"timestamp"`
+	Message          string            `json:"message"`
+	ConversationID   string            `json:"conversation_id"`
+	Timestamp        string            `json:"timestamp"`
+	RecommendedShops []RecommendedShop `json:"recommended_shops,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -60,6 +72,43 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 
 	if req.Message == "" {
 		h.sendError(w, http.StatusBadRequest, "EMPTY_MESSAGE", "Message cannot be empty")
+		return
+	}
+
+	// Get location for partner shop recommendations
+	location := ""
+	if req.Location != nil {
+		location = *req.Location
+	}
+
+	// If session_id is provided, use session-based processing (n8n workflow style)
+	if req.SessionID != nil && *req.SessionID != "" {
+		result, err := h.chatService.ProcessLaundryMessage(req.Message, *req.SessionID, location)
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, "AI_ERROR", "Failed to process message: "+err.Error())
+			return
+		}
+
+		// Convert service shops to handler shops
+		recommendedShops := make([]RecommendedShop, len(result.RecommendedShops))
+		for i, shop := range result.RecommendedShops {
+			recommendedShops[i] = RecommendedShop{
+				Name:        shop.Name,
+				Zipcode:     shop.Zipcode,
+				Priority:    shop.Priority,
+				Rating:      shop.Rating,
+				Specialties: shop.Specialties,
+			}
+		}
+
+		response := SendMessageResponse{
+			Message:          result.Message,
+			ConversationID:   *req.SessionID,
+			Timestamp:        time.Now().Format(time.RFC3339),
+			RecommendedShops: recommendedShops,
+		}
+
+		h.sendJSON(w, http.StatusOK, response)
 		return
 	}
 

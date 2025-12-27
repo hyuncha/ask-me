@@ -5,10 +5,10 @@ import (
         "fmt"
 
         "github.com/google/uuid"
-        "github.com/yourusername/cleaners-ai/internal/domain/entity"
-        "github.com/yourusername/cleaners-ai/internal/infrastructure/persistence"
-        "github.com/yourusername/cleaners-ai/pkg/llm"
-        "github.com/yourusername/cleaners-ai/pkg/vector"
+        "cleaners-ai/internal/domain/entity"
+        "cleaners-ai/internal/infrastructure/persistence"
+        "cleaners-ai/pkg/llm"
+        "cleaners-ai/pkg/vector"
 )
 
 type RAGService struct {

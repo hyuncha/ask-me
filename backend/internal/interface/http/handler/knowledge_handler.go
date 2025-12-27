@@ -6,8 +6,9 @@ import (
         "strings"
 
         "github.com/google/uuid"
-        "github.com/yourusername/cleaners-ai/internal/application/service"
-        "github.com/yourusername/cleaners-ai/internal/domain/entity"
+        "cleaners-ai/internal/application/service"
+        "cleaners-ai/internal/domain/entity"
+        "cleaners-ai/internal/interface/http/middleware"
 )
 
 type KnowledgeHandler struct {

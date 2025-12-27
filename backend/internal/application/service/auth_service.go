@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yourusername/cleaners-ai/internal/domain/entity"
-	"github.com/yourusername/cleaners-ai/internal/infrastructure/persistence"
-	"github.com/yourusername/cleaners-ai/pkg/auth"
+	"cleaners-ai/internal/domain/entity"
+	"cleaners-ai/internal/infrastructure/persistence"
+	"cleaners-ai/pkg/auth"
 )
 
 type AuthService struct {

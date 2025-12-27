@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yourusername/cleaners-ai/pkg/textextractor"
+	"cleaners-ai/pkg/textextractor"
 )
 
 type TextExtractionHandler struct {

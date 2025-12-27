@@ -15,6 +15,7 @@ type Config struct {
         Database    DatabaseConfig
         Redis       RedisConfig
         Pinecone    PineconeConfig
+        OpenRouter  OpenRouterConfig
         Auth        AuthConfig
         LLM         LLMConfig
         Stripe      StripeConfig
@@ -45,6 +46,12 @@ type PineconeConfig struct {
         APIKey      string
         Environment string
         IndexName   string
+        AssistantID string
+}
+
+type OpenRouterConfig struct {
+        APIKey string
+        Model  string
 }
 
 type AuthConfig struct {
@@ -97,6 +104,11 @@ func Load() (*Config, error) {
                         APIKey:      getEnv("PINECONE_API_KEY", ""),
                         Environment: getEnv("PINECONE_ENV", ""),
                         IndexName:   getEnv("PINECONE_INDEX_NAME", "cleaners-knowledge"),
+                        AssistantID: getEnv("PINECONE_ASSISTANT_ID", ""),
+                },
+                OpenRouter: OpenRouterConfig{
+                        APIKey: getEnv("OPENROUTER_API_KEY", ""),
+                        Model:  getEnv("OPENROUTER_MODEL", "openai/gpt-4.1"),
                 },
                 Auth: AuthConfig{
                         JWTSecret:          getEnv("JWT_SECRET", ""),

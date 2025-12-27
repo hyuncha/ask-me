@@ -6,7 +6,7 @@ import (
         "time"
 
         _ "github.com/lib/pq"
-        "github.com/yourusername/cleaners-ai/pkg/config"
+        "cleaners-ai/pkg/config"
 )
 
 type PostgresDB struct {

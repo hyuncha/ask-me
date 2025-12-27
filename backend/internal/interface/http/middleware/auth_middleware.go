@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/yourusername/cleaners-ai/pkg/auth"
+	"cleaners-ai/pkg/auth"
 )
 
 type contextKey string

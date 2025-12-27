@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yourusername/cleaners-ai/internal/domain/entity"
+	"cleaners-ai/internal/domain/entity"
 )
 
 type ConversationRepository struct {

@@ -8,12 +8,12 @@ import (
         "path/filepath"
         "strings"
 
-        "github.com/yourusername/cleaners-ai/internal/application/service"
-        "github.com/yourusername/cleaners-ai/internal/infrastructure/persistence"
-        "github.com/yourusername/cleaners-ai/internal/interface/http/handler"
-        "github.com/yourusername/cleaners-ai/pkg/auth"
-        "github.com/yourusername/cleaners-ai/pkg/llm"
-        "github.com/yourusername/cleaners-ai/pkg/vector"
+        "cleaners-ai/internal/application/service"
+        "cleaners-ai/internal/infrastructure/persistence"
+        "cleaners-ai/internal/interface/http/handler"
+        "cleaners-ai/pkg/auth"
+        "cleaners-ai/pkg/llm"
+        "cleaners-ai/pkg/vector"
 )
 
 func NewRouter(
@@ -23,6 +23,8 @@ func NewRouter(
         googleOAuth *auth.GoogleOAuthManager,
         embeddingClient *llm.EmbeddingClient,
         pineconeClient *vector.PineconeClient,
+        openRouterClient *llm.OpenRouterClient,
+        pineconeAssistant *vector.PineconeAssistantClient,
 ) http.Handler {
         mux := http.NewServeMux()
 
@@ -42,6 +44,15 @@ func NewRouter(
         // Initialize services
         ragService := service.NewRAGService(knowledgeRepo, embeddingClient, pineconeClient, "cleaners-ai")
         chatService := service.NewChatService(llmClient, convRepo, messageRepo, ragService)
+
+        // Configure OpenRouter and Pinecone Assistant if available
+        if openRouterClient != nil {
+                chatService.SetOpenRouterClient(openRouterClient)
+        }
+        if pineconeAssistant != nil {
+                chatService.SetPineconeAssistant(pineconeAssistant)
+        }
+
         authService := service.NewAuthService(userRepo, jwtManager, googleOAuth)
 
         // Initialize handlers

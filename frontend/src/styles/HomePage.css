@@ -289,6 +289,81 @@
   object-fit: contain;
 }
 
+/* Recommended Shops Styles */
+.recommended-shops {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.recommended-shops h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #667eea;
+}
+
+.shop-card {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.shop-card:last-child {
+  margin-bottom: 0;
+}
+
+.shop-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.shop-details {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.shop-rating {
+  color: #f39c12;
+}
+
+.shop-priority {
+  background-color: #667eea;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.shop-specialties {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Location Input Styles */
+.location-input {
+  padding: 14px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.location-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.location-input::placeholder {
+  color: #aaa;
+}
+
 @media (max-width: 768px) {
   .chat-container {
     height: 100vh;
@@ -301,5 +376,10 @@
 
   .message-content {
     max-width: 85%;
+  }
+
+  .location-input {
+    width: 80px !important;
+    font-size: 12px;
   }
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yourusername/cleaners-ai/internal/application/service"
+	"cleaners-ai/internal/application/service"
 )
 
 type AuthHandler struct {

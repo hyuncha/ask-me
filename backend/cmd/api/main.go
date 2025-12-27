@@ -11,13 +11,13 @@ import (
         "syscall"
         "time"
 
-        "github.com/yourusername/cleaners-ai/internal/interface/http/router"
-        "github.com/yourusername/cleaners-ai/pkg/auth"
-        "github.com/yourusername/cleaners-ai/pkg/config"
-        "github.com/yourusername/cleaners-ai/pkg/database"
-        "github.com/yourusername/cleaners-ai/pkg/llm"
-        "github.com/yourusername/cleaners-ai/pkg/logger"
-        "github.com/yourusername/cleaners-ai/pkg/vector"
+        "cleaners-ai/internal/interface/http/router"
+        "cleaners-ai/pkg/auth"
+        "cleaners-ai/pkg/config"
+        "cleaners-ai/pkg/database"
+        "cleaners-ai/pkg/llm"
+        "cleaners-ai/pkg/logger"
+        "cleaners-ai/pkg/vector"
 )
 
 func main() {
@@ -86,6 +86,30 @@ func main() {
                 log.Warn("Pinecone credentials not configured - RAG features will be limited")
         }
 
+        // Initialize Pinecone Assistant client (for n8n-style RAG)
+        var pineconeAssistant *vector.PineconeAssistantClient
+        if cfg.Pinecone.APIKey != "" && cfg.Pinecone.AssistantID != "" {
+                pineconeAssistant = vector.NewPineconeAssistantClient(
+                        cfg.Pinecone.APIKey,
+                        cfg.Pinecone.AssistantID,
+                )
+                log.Info("Pinecone Assistant client initialized",
+                        "assistant_id", cfg.Pinecone.AssistantID,
+                )
+        }
+
+        // Initialize OpenRouter client (if configured)
+        var openRouterClient *llm.OpenRouterClient
+        if cfg.OpenRouter.APIKey != "" {
+                openRouterClient = llm.NewOpenRouterClient(
+                        cfg.OpenRouter.APIKey,
+                        cfg.OpenRouter.Model,
+                )
+                log.Info("OpenRouter client initialized",
+                        "model", cfg.OpenRouter.Model,
+                )
+        }
+
         // Initialize JWT manager
         jwtManager := auth.NewJWTManager(
                 cfg.Auth.JWTSecret,
@@ -107,7 +131,7 @@ func main() {
         if db != nil {
                 sqlDB = db.DB
         }
-        r := router.NewRouter(llmClient, sqlDB, jwtManager, googleOAuth, embeddingClient, pineconeClient)
+        r := router.NewRouter(llmClient, sqlDB, jwtManager, googleOAuth, embeddingClient, pineconeClient, openRouterClient, pineconeAssistant)
 
         // Create HTTP server
         srv := &http.Server{

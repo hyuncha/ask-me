@@ -1,4 +1,4 @@
-module github.com/yourusername/cleaners-ai
+module cleaners-ai
 
 go 1.24.1
 
