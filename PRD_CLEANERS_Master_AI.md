@@ -1,219 +1,210 @@
-# Ask‑Me Laundry Master AI PRD
-(30년 세탁 장인 Q&A + 파트너 세탁소 추천 시스템)
+# Ask‑Me Cleaners – Development PRD (Vercel Edition)
 
-## 1. 프로젝트 개요
+## 1. 목적 (Why)
 
-본 프로젝트는 일반 소비자(고객)가 세탁, 얼룩 제거, 의류 소재 관리에 대해 질문하면  
-**30년 이상 경력의 세탁소 장인처럼 말하는 AI**가 답변하는 Q&A 시스템이다.
-
-추가적으로, **Pinecone 구독료를 지불한 파트너 세탁소**를  
-AI 응답 흐름 안에서 **자연스럽게 추천**하는 구조를 포함한다.
+이 문서는 **Ask‑Me Cleaners Master AI**를 **빠르고 안정적으로 MVP → SaaS**로 구현하기 위한 **개발자용 PRD**이다.  
+배포 타깃은 **Vercel**이며, 초기 목표는 **최소한의 복잡성 + 확장 가능한 구조**다.
 
 ---
 
-## 2. 핵심 목표
+## 2. 핵심 결정 요약 (TL;DR)
 
-- 소비자 신뢰 확보 (현실적 · 과장 없는 답변)
-- 세탁 실패/분쟁 예방
-- 세탁소 B2B 수익 모델 구축 (Pinecone 구독)
-- 지역 기반 세탁소 연결 자동화
-
----
-
-## 3. 시스템 아키텍처
-
-Frontend (React / Mobile / PWA)
-→ Backend API (Go)
-→ Pinecone Assistant (세탁 지식 + 파트너 세탁소 인덱스)
-→ OpenRouter LLM (장인 응답 생성)
+- **Frontend / API**: Next.js (App Router) – Vercel Native
+- **LLM**: OpenRouter (GPT‑4.1 계열)
+- **Vector DB**: Pinecone (Knowledge / Partner 분리)
+- **Auth**: 없음 (MVP), 추후 Clerk/Auth.js
+- **DB**: 없음 (MVP), 파트너 메타는 Pinecone로 시작
+- **Infra 철학**: “서버 관리 X, 코드만 관리 O”
 
 ---
 
-## 4. 핵심 기능
+## 3. 시스템 아키텍처 (단순화)
 
-### 4.1 RAG 기반 세탁 장인 Q&A
+```
+Client (Web / PWA)
+  ↓
+Next.js App Router
+  ├─ /api/chat  (Server Action / Route Handler)
+  │    ↓
+  │  RAG Orchestrator
+  │    ├─ Pinecone (Laundry Knowledge)
+  │    ├─ Pinecone (Partner Cleaners)
+  │    └─ OpenRouter LLM
+  ↓
+Response (Answer + Recommended Shops)
+```
 
-- 세탁 노하우 문서
-- 얼룩 유형별 성공/실패 사례
-- 소재별 금기사항
-- 세탁 사고 분쟁 케이스
-
----
-
-### 4.2 장인 캐릭터 응답 규칙
-
-- 된다 / 안 된다 명확 구분
-- 확률 기반 설명 (예: 30~40%)
-- 집에서 시도 시 위험성 경고
-- 책임 회피 없는 현실 조언
-
----
-
-### 4.3 파트너 세탁소 추천 로직 (중요)
-
-AI는 아래 조건을 만족할 때 **파트너 세탁소를 우선 추천**한다.
-
-- 성공 확률 < 60%
-- 고급 소재 (실크, 캐시미어, 가죽 등)
-- 얼룩 발생 후 48시간 초과
-- 고객이 "맡기면 나을까요?" 질문
-
-추천 대상은:
-- Pinecone에 **구독 등록된 세탁소**
-- 지역 기반 필터 적용
+> ❗ Go 백엔드는 **MVP 범위에서 제거**  
+> → 복잡도 감소, 배포/운영 비용 최소화
 
 ---
 
-## 5. 시스템 프롬프트 (요약)
+## 4. 기술 스택 (확정)
 
-너는 30년 경력의 세탁 장인이다.  
-될 수 있는 것과 안 되는 것을 솔직하게 말해라.  
-확률과 위험을 반드시 설명해라.  
-전문 세탁소가 필요한 경우, **파트너 세탁소를 우선 안내**해라.
+### Frontend / Backend (Unified)
+
+- **Next.js 14+ (App Router)**
+- TypeScript
+- Server Actions / Route Handlers
+- Edge Runtime (가능한 범위)
+
+### AI / Data
+
+- OpenRouter API
+- Pinecone Assistant / Index
+- Embeddings: text-embedding-3-large (or equivalent)
+
+### 배포
+
+- Vercel (Preview / Production)
+- Environment Variables (Vercel Dashboard)
 
 ---
 
-## 6. API 명세
+## 5. 기능 명세 (MVP Scope)
 
-### POST /api/chat/message
+### 5.1 세탁 장인 Q&A (RAG)
 
-Request:
+**입력**
+
 ```json
 {
-  "message": "실크 블라우스에 와인 얼룩이 있어요",
-  "location": "90005"
+  "message": "실크 블라우스에 와인 얼룩",
+  "zipcode": "90005"
 }
 ```
 
-Response:
+**처리 흐름**
+
+1. 사용자 질문 수신
+2. Laundry Knowledge Index 검색
+3. 성공 확률 / 위험도 계산
+4. 조건 충족 시 Partner Index 검색
+5. 장인 캐릭터 프롬프트로 LLM 호출
+
+**출력**
+
 ```json
 {
-  "message": "이건 집에서 건드리면 거의 망가집니다. 이 경우에는 전문 세탁소에 맡기는 게 맞고, 근처 파트너 세탁소를 안내드릴게요.",
-  "recommended_shops": [
-    {
-      "name": "ABC Cleaners",
-      "zipcode": "90005",
-      "priority": "partner"
-    }
-  ]
+  "answer": "...",
+  "success_rate": "30~40%",
+  "risk_level": "high",
+  "recommended_shops": []
 }
 ```
 
 ---
 
-## 7. 데이터 구조 (Pinecone)
+### 5.2 파트너 세탁소 추천 로직
 
-### Index A: Laundry Knowledge
-- stain_type
-- fabric_type
-- success_rate
-- risk_level
+**추천 트리거**
 
-### Index B: Partner Cleaners
-- shop_name
-- zipcode
-- subscription_status
-- rating
-- specialties
+- success_rate < 60%
+- fabric ∈ [silk, cashmere, leather]
+- stain_age > 48h
+- 질문에 “맡기면” 포함
 
----
+**우선순위**
 
-## 8. 향후 확장 (Roadmap)
-
-### 📸 사진 업로드 → 얼룩 유형 추정
-- 이미지 기반 얼룩 분류
-- LLM + Vision 모델 연동
-
-### 📊 성공 확률 % 표시
-- 케이스 기반 평균 성공 확률 계산
-- UI에 시각적으로 표시
-
-### 🏪 “세탁소 맡기세요” 조건 추천
-- 위험 조건 자동 트리거
-- 파트너 세탁소 우선 노출
-
-### 🌎 지역 기반 세탁소 연결 (구독 모델)
-- Pinecone 구독 세탁소만 추천
-- Zipcode 기반 자동 필터
-- 향후 광고/프리미엄 노출 가능
+1. Pinecone subscription_status = active
+2. zipcode match
+3. specialty match
 
 ---
 
-## 9. 수익 모델
+## 6. Pinecone 데이터 설계
 
-- 세탁소 Pinecone 구독료
-- 지역 우선 노출 옵션
-- 향후 예약/픽업 연동 수수료
+### Index A – Laundry Knowledge
+
+```json
+{
+  "id": "stain_wine_silk",
+  "metadata": {
+    "stain_type": "wine",
+    "fabric": "silk",
+    "success_rate": 0.35,
+    "risk": "high"
+  }
+}
+```
+
+### Index B – Partner Cleaners
+
+```json
+{
+  "id": "abc_cleaners_90005",
+  "metadata": {
+    "shop_name": "ABC Cleaners",
+    "zipcode": "90005",
+    "subscription": "active",
+    "specialty": ["silk", "luxury"]
+  }
+}
+```
 
 ---
 
-## 10. 법적·운영 안전장치
+## 7. API 설계 (Next.js Route Handler)
 
-- 100% 성공 표현 금지
-- 의료·법률 유사 표현 금지
-- 모든 답변은 정보 제공 목적
-- 전문가 판단 필요 문구 자동 삽입
+### POST /api/chat
 
----
-
-## 11. 향후 확장 비전
-
-Ask‑Me Laundry Master AI는
-**세탁 업계의 ChatGPT + Yelp + 예약 플랫폼**으로 확장된다.
+- Runtime: nodejs (초기 안정성 우선)
+- Timeout: 10s
 
 ---
 
-## 12. 구현 현황
-
-### ✅ 완료된 기능
-
-| 항목 | 상태 | 파일 |
-|------|------|------|
-| 시스템 프롬프트 (30년 장인) | ✅ | `backend/pkg/llm/openrouter.go`, `openai.go` |
-| OpenRouter API 클라이언트 | ✅ | `backend/pkg/llm/openrouter.go` |
-| 세션 기반 메모리 | ✅ | `backend/internal/application/service/chat_service.go` |
-| 파트너 세탁소 추천 로직 | ✅ | `backend/internal/application/service/partner_shop_service.go` |
-| Location 기반 API | ✅ | `backend/internal/interface/http/handler/chat_handler.go` |
-| 프론트엔드 채팅 UI | ✅ | `frontend/src/pages/ChatPage.tsx` |
-| 추천 세탁소 표시 UI | ✅ | `frontend/src/styles/HomePage.css` |
-| Pinecone Assistant 연동 | ✅ | `backend/pkg/vector/pinecone_assistant.go` |
-
-### 🔧 환경 변수 설정
+## 8. 환경 변수 (Vercel)
 
 ```bash
-# .env 파일
 OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=openai/gpt-4.1
 PINECONE_API_KEY=...
-PINECONE_ASSISTANT_ID=...
+PINECONE_INDEX_LAUNDRY=laundry-knowledge
+PINECONE_INDEX_PARTNER=partner-cleaners
 ```
 
-### 📁 디렉토리 구조
+---
 
-```
-Ask-Me/
-├── backend/
-│   ├── cmd/server/main.go
-│   ├── internal/
-│   │   ├── application/service/
-│   │   │   ├── chat_service.go         # 세탁 장인 AI 서비스
-│   │   │   └── partner_shop_service.go # 파트너 세탁소 추천
-│   │   ├── infrastructure/config/
-│   │   │   └── config.go               # 환경설정
-│   │   └── interface/http/
-│   │       ├── handler/chat_handler.go # API 핸들러
-│   │       └── router/router.go        # 라우팅
-│   └── pkg/
-│       ├── llm/
-│       │   ├── openrouter.go           # OpenRouter 클라이언트
-│       │   └── openai.go               # OpenAI 폴백
-│       └── vector/
-│           └── pinecone_assistant.go   # Pinecone Assistant
-├── frontend/
-│   ├── src/
-│   │   ├── pages/ChatPage.tsx          # 채팅 페이지
-│   │   ├── services/chatService.ts     # API 서비스
-│   │   └── styles/HomePage.css         # 스타일
-│   └── package.json
-└── PRD_CLEANERS_Master_AI.md           # 본 문서
-```
+## 9. 금지 규칙 (Hard Rules)
+
+- 100% 성공 표현 금지
+- 의료/법률 조언 금지
+- “책임 없음” 문구 자동 삽입
+- 파트너 아닌 세탁소 추천 금지
+
+---
+
+## 10. MVP 이후 로드맵
+
+### Phase 2
+
+- 이미지 업로드 → 얼룩 분류
+- 성공 확률 UI 시각화
+- 파트너 대시보드
+
+### Phase 3
+
+- 예약 / 픽업 연동
+- 구독 결제 (Stripe)
+- 지역 광고 슬롯
+
+---
+
+## 11. 개발 원칙 (중요)
+
+- **코드는 짧게, 로직은 명확하게**
+- DB 늘리기 전에 Pinecone로 해결
+- “지금 필요 없는 확장”은 금지
+
+---
+
+## 12. Definition of Done (MVP)
+
+- [ ] 질문 → 답변 3초 이내
+- [ ] 파트너 추천 정확도 > 80%
+- [ ] Vercel Preview/Prod 동일 동작
+- [ ] 운영자 개입 없이 동작
+
+---
+
+이 문서는 **개발 중 유일한 기준 문서(Single Source of Truth)**로 사용한다.
