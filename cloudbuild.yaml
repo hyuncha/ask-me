@@ -53,6 +53,36 @@ steps:
       - 'push'
       - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/frontend:latest'
 
+  # ============== DEPLOY PHASE ==============
+  # Backend 배포 (환경변수는 gcloud run services update로 별도 설정 필요)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-backend'
+    waitFor: ['push-backend', 'push-backend-latest']
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cleaners-ai-backend'
+      - '--image'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/backend:latest'
+      - '--region'
+      - 'us-west2'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--port'
+      - '8080'
+      - '--add-cloudsql-instances'
+      - 'askme-482400:us-west2:cleaners-db'
+
   # Backend URL 조회
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'get-backend-url'

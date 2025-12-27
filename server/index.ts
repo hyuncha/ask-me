@@ -21,25 +21,26 @@ const parseDbConfig = (): void => {
       const params = new URLSearchParams(url.search);
       const socketHost = params.get('host');
 
+      const sslModeParam = params.get('sslmode');
+
       if (socketHost && socketHost.startsWith('/')) {
         // Unix socket: postgres://user:pass@/dbname?host=/cloudsql/project:region:instance
         process.env.DB_HOST = socketHost;
         process.env.DB_PORT = '5432'; // Ignored for Unix socket but set for consistency
-        console.log(`[DB Config] socket=${socketHost} db=${process.env.DB_NAME}`);
+        // Unix socket is already secure, disable is OK
+        process.env.DB_SSL_MODE = sslModeParam || 'disable';
+        console.log(`[DB Config] socket=${socketHost} db=${process.env.DB_NAME} sslmode=${process.env.DB_SSL_MODE}`);
       } else if (url.hostname) {
         // TCP connection
         process.env.DB_HOST = url.hostname;
         process.env.DB_PORT = url.port || '5432';
-        console.log(`[DB Config] host=${url.hostname} port=${process.env.DB_PORT} db=${process.env.DB_NAME}`);
+        // TCP requires SSL
+        process.env.DB_SSL_MODE = (sslModeParam && sslModeParam !== 'disable') ? sslModeParam : 'require';
+        console.log(`[DB Config] host=${url.hostname} port=${process.env.DB_PORT} db=${process.env.DB_NAME} sslmode=${process.env.DB_SSL_MODE}`);
       } else {
         console.error('[DB Config] DATABASE_URL must specify host or socket path');
         process.exit(1);
       }
-
-      // SSL: always require, never disable
-      const sslMode = params.get('sslmode');
-      process.env.DB_SSL_MODE = (sslMode && sslMode !== 'disable') ? sslMode : 'require';
-      console.log(`[DB Config] sslmode=${process.env.DB_SSL_MODE}`);
       return;
     } catch (e) {
       console.error('[DB Config] Failed to parse DATABASE_URL:', e);
@@ -76,9 +77,15 @@ const parseDbConfig = (): void => {
     process.exit(1);
   }
 
-  // SSL: always require, never disable
+  // SSL: Unix socket is already secure (disable OK), TCP requires SSL
   const sslMode = process.env.DB_SSL_MODE || process.env.PGSSLMODE;
-  process.env.DB_SSL_MODE = (sslMode && sslMode !== 'disable') ? sslMode : 'require';
+  if (host.startsWith('/')) {
+    // Unix socket - disable is OK
+    process.env.DB_SSL_MODE = sslMode || 'disable';
+  } else {
+    // TCP - require SSL
+    process.env.DB_SSL_MODE = (sslMode && sslMode !== 'disable') ? sslMode : 'require';
+  }
 
   // Log connection target (no secrets)
   if (host.startsWith('/')) {

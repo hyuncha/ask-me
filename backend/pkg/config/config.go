@@ -216,10 +216,11 @@ func loadDatabaseConfig() (DatabaseConfig, error) {
                 return DatabaseConfig{}, fmt.Errorf("DB_NAME/PGDATABASE is required")
         }
 
-        // SSLMode: require by default for Cloud Run, never disable
+        // SSLMode: for Unix socket (Cloud SQL), disable is OK (socket is already secure)
+        // For TCP connections, require SSL
         sslMode := getEnvWithFallback("DB_SSL_MODE", "PGSSLMODE", "require")
-        if sslMode == "disable" {
-                sslMode = "require" // Force SSL in production
+        if sslMode == "disable" && !strings.HasPrefix(host, "/") {
+                sslMode = "require" // Force SSL for TCP connections
         }
 
         port := getEnvAsIntWithFallback("DB_PORT", "PGPORT", 5432)
@@ -259,9 +260,6 @@ func parseDatabaseURL(dbURL string) (DatabaseConfig, error) {
         // Parse query parameters
         query := u.Query()
         sslMode := query.Get("sslmode")
-        if sslMode == "" || sslMode == "disable" {
-                sslMode = "require" // Force SSL
-        }
 
         var host string
         var port int
@@ -271,6 +269,10 @@ func parseDatabaseURL(dbURL string) (DatabaseConfig, error) {
                 // Unix socket: host=/cloudsql/project:region:instance
                 host = socketHost
                 port = 5432 // Port is ignored for Unix sockets but keep for struct
+                // Unix socket is already secure, sslmode=disable is OK
+                if sslMode == "" {
+                        sslMode = "disable"
+                }
         } else if u.Host != "" {
                 // TCP connection
                 host = u.Hostname()
@@ -279,6 +281,10 @@ func parseDatabaseURL(dbURL string) (DatabaseConfig, error) {
                         port, _ = strconv.Atoi(portStr)
                 } else {
                         port = 5432
+                }
+                // TCP connection requires SSL
+                if sslMode == "" || sslMode == "disable" {
+                        sslMode = "require"
                 }
         } else {
                 return DatabaseConfig{}, fmt.Errorf("DATABASE_URL must specify host or socket path")
