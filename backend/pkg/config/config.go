@@ -2,8 +2,10 @@ package config
 
 import (
         "fmt"
+        "net/url"
         "os"
         "strconv"
+        "strings"
 
         "github.com/joho/godotenv"
 )
@@ -80,20 +82,19 @@ func Load() (*Config, error) {
         // Load .env file if exists (for local development)
         _ = godotenv.Load()
 
+        // Parse DATABASE_URL if provided (highest priority)
+        dbConfig, err := loadDatabaseConfig()
+        if err != nil {
+                return nil, err
+        }
+
         cfg := &Config{
                 Environment: getEnv("ENVIRONMENT", "development"),
                 Server: ServerConfig{
                         Port: getEnvAsInt("SERVER_PORT", 8080),
-                        Host: getEnv("SERVER_HOST", "localhost"),
+                        Host: getEnv("SERVER_HOST", "0.0.0.0"), // 0.0.0.0 for Cloud Run compatibility
                 },
-                Database: DatabaseConfig{
-                        Host:     getEnvWithFallback("DB_HOST", "PGHOST", "localhost"),
-                        Port:     getEnvAsIntWithFallback("DB_PORT", "PGPORT", 5432),
-                        User:     getEnvWithFallback("DB_USER", "PGUSER", "postgres"),
-                        Password: getEnvWithFallback("DB_PASSWORD", "PGPASSWORD", ""),
-                        DBName:   getEnvWithFallback("DB_NAME", "PGDATABASE", "cleaners_ai"),
-                        SSLMode:  getEnv("DB_SSL_MODE", "disable"),
-                },
+                Database: dbConfig,
                 Redis: RedisConfig{
                         Host:     getEnv("REDIS_HOST", "localhost"),
                         Port:     getEnvAsInt("REDIS_PORT", 6379),
@@ -182,4 +183,134 @@ func getEnvAsIntWithFallback(primary, fallback string, defaultValue int) int {
                 }
         }
         return defaultValue
+}
+
+// loadDatabaseConfig loads database configuration with strict validation
+// Priority: DATABASE_URL > PGHOST/DB_HOST env vars
+// NO localhost fallback - missing config is a fatal error
+func loadDatabaseConfig() (DatabaseConfig, error) {
+        // Priority 1: DATABASE_URL (supports both TCP and Unix socket)
+        if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+                return parseDatabaseURL(dbURL)
+        }
+
+        // Priority 2: Individual environment variables (PGHOST or DB_HOST)
+        host := getEnvWithFallback("DB_HOST", "PGHOST", "")
+        if host == "" {
+                return DatabaseConfig{}, fmt.Errorf("DATABASE_URL or DB_HOST/PGHOST is required - localhost fallback is disabled")
+        }
+
+        // Validate: reject localhost explicitly
+        if host == "localhost" || host == "127.0.0.1" {
+                return DatabaseConfig{}, fmt.Errorf("localhost database connection is not allowed in production - use Cloud SQL socket or remote host")
+        }
+
+        user := getEnvWithFallback("DB_USER", "PGUSER", "")
+        if user == "" {
+                return DatabaseConfig{}, fmt.Errorf("DB_USER/PGUSER is required")
+        }
+
+        password := getEnvWithFallback("DB_PASSWORD", "PGPASSWORD", "")
+        dbName := getEnvWithFallback("DB_NAME", "PGDATABASE", "")
+        if dbName == "" {
+                return DatabaseConfig{}, fmt.Errorf("DB_NAME/PGDATABASE is required")
+        }
+
+        // SSLMode: require by default for Cloud Run, never disable
+        sslMode := getEnvWithFallback("DB_SSL_MODE", "PGSSLMODE", "require")
+        if sslMode == "disable" {
+                sslMode = "require" // Force SSL in production
+        }
+
+        port := getEnvAsIntWithFallback("DB_PORT", "PGPORT", 5432)
+
+        config := DatabaseConfig{
+                Host:     host,
+                Port:     port,
+                User:     user,
+                Password: password,
+                DBName:   dbName,
+                SSLMode:  sslMode,
+        }
+
+        // Log connection target (no secrets)
+        fmt.Printf("[DB Config] host=%s port=%d db=%s sslmode=%s\n", host, port, dbName, sslMode)
+
+        return config, nil
+}
+
+// parseDatabaseURL parses DATABASE_URL supporting both TCP and Unix socket formats
+// TCP: postgres://user:pass@host:port/dbname?sslmode=require
+// Unix: postgres://user:pass@/dbname?host=/cloudsql/project:region:instance
+func parseDatabaseURL(dbURL string) (DatabaseConfig, error) {
+        u, err := url.Parse(dbURL)
+        if err != nil {
+                return DatabaseConfig{}, fmt.Errorf("invalid DATABASE_URL: %w", err)
+        }
+
+        if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+                return DatabaseConfig{}, fmt.Errorf("DATABASE_URL must use postgres:// scheme")
+        }
+
+        user := u.User.Username()
+        password, _ := u.User.Password()
+        dbName := strings.TrimPrefix(u.Path, "/")
+
+        // Parse query parameters
+        query := u.Query()
+        sslMode := query.Get("sslmode")
+        if sslMode == "" || sslMode == "disable" {
+                sslMode = "require" // Force SSL
+        }
+
+        var host string
+        var port int
+
+        // Check for Unix socket in query parameter (Cloud SQL style)
+        if socketHost := query.Get("host"); socketHost != "" && strings.HasPrefix(socketHost, "/") {
+                // Unix socket: host=/cloudsql/project:region:instance
+                host = socketHost
+                port = 5432 // Port is ignored for Unix sockets but keep for struct
+        } else if u.Host != "" {
+                // TCP connection
+                host = u.Hostname()
+                portStr := u.Port()
+                if portStr != "" {
+                        port, _ = strconv.Atoi(portStr)
+                } else {
+                        port = 5432
+                }
+        } else {
+                return DatabaseConfig{}, fmt.Errorf("DATABASE_URL must specify host or socket path")
+        }
+
+        // Validate: reject localhost
+        if host == "localhost" || host == "127.0.0.1" {
+                return DatabaseConfig{}, fmt.Errorf("localhost database connection is not allowed - use Cloud SQL socket or remote host")
+        }
+
+        if user == "" {
+                return DatabaseConfig{}, fmt.Errorf("DATABASE_URL must include username")
+        }
+        if dbName == "" {
+                return DatabaseConfig{}, fmt.Errorf("DATABASE_URL must include database name")
+        }
+
+        config := DatabaseConfig{
+                Host:     host,
+                Port:     port,
+                User:     user,
+                Password: password,
+                DBName:   dbName,
+                SSLMode:  sslMode,
+        }
+
+        // Log connection target (no secrets)
+        if strings.HasPrefix(host, "/") {
+                fmt.Printf("[DB Config] socket=%s db=%s sslmode=%s\n", host, dbName, sslMode)
+        } else {
+                fmt.Printf("[DB Config] host=%s port=%d db=%s sslmode=%s\n", host, port, dbName, sslMode)
+        }
+
+        return config, nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"cleaners-ai/internal/application/service"
 )
@@ -114,8 +115,12 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
-	// Redirect to frontend
-	http.Redirect(w, r, "http://localhost:3000", http.StatusTemporaryRedirect)
+	// Redirect to frontend (use FRONTEND_URL env var for Cloud Run deployment)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000" // fallback for local development
+	}
+	http.Redirect(w, r, frontendURL, http.StatusTemporaryRedirect)
 }
 
 // RefreshToken refreshes the access token

@@ -3,8 +3,8 @@ import '../styles/LoginPage.css';
 
 const LoginPage: React.FC = () => {
   const handleGoogleLogin = () => {
-    // Redirect to backend Google OAuth
-    window.location.href = 'http://localhost:8080/auth/google';
+    // Redirect to backend Google OAuth (relative path works with nginx proxy)
+    window.location.href = '/auth/google';
   };
 
   return (

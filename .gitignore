@@ -27,3 +27,11 @@ vite.config.ts.*
 frontend/build/
 backend/main
 *.exe
+
+# Secrets and keys (NEVER commit these!)
+*_key.txt
+*_url.txt
+sk-*
+service.yaml
+gcloud
+--*

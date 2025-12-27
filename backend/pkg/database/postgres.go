@@ -3,6 +3,7 @@ package database
 import (
         "database/sql"
         "fmt"
+        "strings"
         "time"
 
         _ "github.com/lib/pq"
@@ -14,15 +15,34 @@ type PostgresDB struct {
 }
 
 func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
-        dsn := fmt.Sprintf(
-                "host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-                cfg.Host,
-                cfg.Port,
-                cfg.User,
-                cfg.Password,
-                cfg.DBName,
-                cfg.SSLMode,
-        )
+        var dsn string
+
+        // Check if host is a Unix socket path (starts with /)
+        if strings.HasPrefix(cfg.Host, "/") {
+                // Unix socket connection for Cloud SQL
+                // Format: host=/cloudsql/project:region:instance
+                dsn = fmt.Sprintf(
+                        "host=%s user=%s password=%s dbname=%s sslmode=%s",
+                        cfg.Host,
+                        cfg.User,
+                        cfg.Password,
+                        cfg.DBName,
+                        cfg.SSLMode,
+                )
+                fmt.Printf("[DB Connect] Using Unix socket: %s, db=%s, sslmode=%s\n", cfg.Host, cfg.DBName, cfg.SSLMode)
+        } else {
+                // TCP connection
+                dsn = fmt.Sprintf(
+                        "host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+                        cfg.Host,
+                        cfg.Port,
+                        cfg.User,
+                        cfg.Password,
+                        cfg.DBName,
+                        cfg.SSLMode,
+                )
+                fmt.Printf("[DB Connect] Using TCP: host=%s, port=%d, db=%s, sslmode=%s\n", cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+        }
 
         db, err := sql.Open("postgres", dsn)
         if err != nil {
@@ -39,6 +59,7 @@ func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
                 return nil, fmt.Errorf("failed to ping database: %w", err)
         }
 
+        fmt.Println("[DB Connect] Database connection established successfully")
         return &PostgresDB{db}, nil
 }
 
