@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"cleaners-ai/internal/application/service"
 	"cleaners-ai/internal/infrastructure/persistence"
