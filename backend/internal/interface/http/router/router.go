@@ -135,21 +135,12 @@ func NewRouter(
 // spaFileServer: React SPA 정적 서빙 + fallback(index.html)
 // - 정적 파일이 있으면 그대로 제공
 // - 없으면 index.html로 fallback (SPA 라우팅용)
-// - /api, /auth, /uploads, /health 계열은 정적서빙에서 제외
+// NOTE: API/Auth 라우트는 mux에서 먼저 처리되므로 여기서 별도 처리 불필요
 func spaFileServer(staticDir string) http.Handler {
 	fileServer := http.FileServer(http.Dir(staticDir))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-
-		// ✅ API/Auth/Uploads/Health는 정적서빙이 아니라 서버 라우트로 처리해야 함
-		if strings.HasPrefix(path, "/api") ||
-			strings.HasPrefix(path, "/auth") ||
-			strings.HasPrefix(path, "/uploads") ||
-			strings.HasPrefix(path, "/health") {
-			http.NotFound(w, r)
-			return
-		}
 
 		// 정적 파일 실제 경로 계산
 		cleanPath := filepath.Clean(path)
