@@ -16,9 +16,16 @@ function getClient(): Pinecone {
 
 // OpenAI Embedding API를 사용한 벡터 생성
 async function createEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // Pinecone이 설정되지 않은 경우 빈 배열 반환 (MVP: LLM만 사용)
+  if (!process.env.PINECONE_API_KEY) {
+    return [];
+  }
+
+  // Embedding을 위해서는 OpenAI API 키가 필요 (OpenRouter 키로는 작동하지 않음)
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not configured for embeddings');
+    console.warn('OPENAI_API_KEY not configured, skipping embeddings');
+    return [];
   }
 
   // OpenAI embedding endpoint 사용 (OpenRouter는 embedding을 지원하지 않음)

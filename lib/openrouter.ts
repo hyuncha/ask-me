@@ -39,7 +39,7 @@ export async function sendMessage(
   context?: string
 ): Promise<{ content: string; raw: OpenRouterResponse }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4.1';
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY is not configured');

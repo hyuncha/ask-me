@@ -67,11 +67,16 @@ export async function processChat(
   message: string,
   zipcode?: string
 ): Promise<ChatResponse> {
-  // 1. Knowledge Index에서 관련 정보 검색
-  const knowledgeResults = await searchLaundryKnowledge(message, 3);
-  const context = formatKnowledgeAsContext(knowledgeResults);
+  // 1. Knowledge Index에서 관련 정보 검색 (실패해도 계속 진행)
+  let context = '';
+  try {
+    const knowledgeResults = await searchLaundryKnowledge(message, 3);
+    context = formatKnowledgeAsContext(knowledgeResults);
+  } catch (error) {
+    console.warn('Pinecone search skipped:', error);
+  }
 
-  // 2. OpenRouter로 LLM 호출
+  // 2. OpenRouter로 LLM 호출 (context가 없어도 동작)
   const { content } = await sendMessage(message, context || undefined);
 
   // 3. 응답 메타데이터 파싱
