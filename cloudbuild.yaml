@@ -80,34 +80,38 @@ steps:
       - 'push'
       - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/frontend:latest'
 
-  # Frontend 배포 (Backend URL 주입)
+  # Backend URL 조회
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'get-backend-url'
+    waitFor: ['deploy-backend']
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        BACKEND_URL=$$(gcloud run services describe cleaners-ai-backend --region=us-west2 --format='value(status.url)')
+        echo "$$BACKEND_URL" > /workspace/backend_url.txt
+        echo "Backend URL: $$BACKEND_URL"
+
+  # Frontend 배포 (동적 Backend URL 주입)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-frontend'
-    waitFor: ['push-frontend', 'push-frontend-latest', 'deploy-backend']
-    entrypoint: gcloud
+    waitFor: ['push-frontend', 'push-frontend-latest', 'get-backend-url']
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - 'cleaners-ai-frontend'
-      - '--image'
-      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/frontend:latest'
-      - '--region'
-      - 'us-west2'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '256Mi'
-      - '--cpu'
-      - '1'
-      - '--min-instances'
-      - '0'
-      - '--max-instances'
-      - '5'
-      - '--port'
-      - '8080'
-      - '--set-env-vars'
-      - 'BACKEND_URL=https://cleaners-ai-backend-569647892484.us-west2.run.app'
+      - '-c'
+      - |
+        BACKEND_URL=$$(cat /workspace/backend_url.txt)
+        gcloud run deploy cleaners-ai-frontend \
+          --image us-west2-docker.pkg.dev/askme-482400/cleaners-ai/frontend:latest \
+          --region us-west2 \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 256Mi \
+          --cpu 1 \
+          --min-instances 0 \
+          --max-instances 5 \
+          --port 8080 \
+          --set-env-vars "BACKEND_URL=$$BACKEND_URL"
 
 images:
   - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/backend:${BUILD_ID}'
