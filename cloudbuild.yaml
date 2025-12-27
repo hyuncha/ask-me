@@ -4,22 +4,22 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:$COMMIT_SHA'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:${BUILD_ID}'
       - '-t'
-      - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
       - '.'
 
-  # Artifact Registry에 푸시 (COMMIT_SHA 태그)
+  # Artifact Registry에 푸시 (BUILD_ID 태그)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:$COMMIT_SHA'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:${BUILD_ID}'
 
   # Artifact Registry에 푸시 (latest 태그)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
 
   # Cloud Run 배포
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -29,9 +29,9 @@ steps:
       - 'deploy'
       - 'cleaners-ai'
       - '--image'
-      - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:$COMMIT_SHA'
+      - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
       - '--region'
-      - 'asia-northeast3'
+      - 'us-west2'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -47,8 +47,8 @@ steps:
       - '8080'
 
 images:
-  - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:$COMMIT_SHA'
-  - 'asia-northeast3-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
+  - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:${BUILD_ID}'
+  - 'us-west2-docker.pkg.dev/askme-482400/cleaners-ai/app:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
