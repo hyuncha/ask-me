@@ -2,11 +2,7 @@ package router
 
 import (
         "database/sql"
-        "io/fs"
         "net/http"
-        "os"
-        "path/filepath"
-        "strings"
 
         "cleaners-ai/internal/application/service"
         "cleaners-ai/internal/infrastructure/persistence"
@@ -119,48 +115,8 @@ func NewRouter(
                 w.Write([]byte(`{"status":"healthy","db":"connected"}`))
         })
 
-        // Serve static frontend files (for production)
-        staticDir := os.Getenv("STATIC_DIR")
-        if staticDir == "" {
-                staticDir = "../frontend/build"
-        }
-        if _, err := os.Stat(staticDir); err == nil {
-                mux.HandleFunc("/", createSPAHandler(staticDir))
-        }
-
         return corsHandler
 }
-
-// createSPAHandler creates a handler for serving Single Page Application files
-func createSPAHandler(staticDir string) http.HandlerFunc {
-        return func(w http.ResponseWriter, r *http.Request) {
-                // Don't serve SPA for API routes
-                if strings.HasPrefix(r.URL.Path, "/api/") ||
-                        strings.HasPrefix(r.URL.Path, "/auth/") ||
-                        strings.HasPrefix(r.URL.Path, "/uploads/") ||
-                        r.URL.Path == "/health" {
-                        http.NotFound(w, r)
-                        return
-                }
-
-                // Get the requested path
-                path := filepath.Join(staticDir, r.URL.Path)
-
-                // Check if file exists
-                fi, err := os.Stat(path)
-                if os.IsNotExist(err) || (err == nil && fi.IsDir()) {
-                        // Serve index.html for SPA routing
-                        http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
-                        return
-                }
-
-                // Serve the actual file
-                http.ServeFile(w, r, path)
-        }
-}
-
-// Needed to prevent unused import error
-var _ = fs.FS(nil)
 
 // enableCORS adds CORS headers to all responses
 func enableCORS(next http.Handler) http.Handler {

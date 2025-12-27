@@ -7,25 +7,28 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN SKIP_PREFLIGHT_CHECK=true npm run build
 
 # Run stage
 FROM nginx:alpine
 
+# Install envsubst for environment variable substitution
+RUN apk add --no-cache gettext
+
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration as template
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Expose port
-EXPOSE 3000
+# Cloud Run requires port 8080
+EXPOSE 8080
 
-# Run nginx
-CMD ["nginx", "-g", "daemon off;"]
+# envsubst replaces ${BACKEND_URL} at runtime
+CMD ["sh", "-c", "envsubst '${BACKEND_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
