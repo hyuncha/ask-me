@@ -1,5 +1,5 @@
 # ---------- (1) Backend build stage ----------
-FROM golang:1.22-alpine AS go-builder
+FROM golang:1.24-alpine AS go-builder
 WORKDIR /app
 
 # Go 모듈 파일 먼저 복사 (캐시 이점)
