@@ -38,15 +38,23 @@ export async function sendMessage(
   userMessage: string,
   context?: string
 ): Promise<{ content: string; raw: OpenRouterResponse }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
-  // 환경 변수 디버깅 로그 (민감값 마스킹)
-  console.log('OPENROUTER_API_KEY set:', !!apiKey);
-  console.log('OPENROUTER_MODEL:', model);
+  // 환경 변수 디버깅 로그
+  console.log('[OpenRouter] API Key exists:', !!apiKey);
+  console.log('[OpenRouter] API Key length:', apiKey?.length || 0);
+  console.log('[OpenRouter] API Key prefix:', apiKey?.substring(0, 10) || 'N/A');
+  console.log('[OpenRouter] Model:', model);
 
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY_MISSING');
+  }
+
+  // API 키 형식 검증
+  if (!apiKey.startsWith('sk-or-')) {
+    console.error('[OpenRouter] Invalid API key format. Expected sk-or-...');
+    throw new Error('OPENROUTER_ERROR:401:API 키 형식이 올바르지 않습니다. sk-or-로 시작해야 합니다.');
   }
 
   const systemPrompt = context
