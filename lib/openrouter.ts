@@ -41,8 +41,12 @@ export async function sendMessage(
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
+  // 환경 변수 디버깅 로그 (민감값 마스킹)
+  console.log('OPENROUTER_API_KEY set:', !!apiKey);
+  console.log('OPENROUTER_MODEL:', model);
+
   if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not configured');
+    throw new Error('OPENROUTER_API_KEY_MISSING');
   }
 
   const systemPrompt = context

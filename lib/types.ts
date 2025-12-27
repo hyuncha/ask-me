@@ -74,3 +74,39 @@ export interface OpenRouterResponse {
     total_tokens: number;
   };
 }
+
+// Upsert Types
+export interface UpsertResult {
+  upsertedCount: number;
+  errors: UpsertError[];
+}
+
+export interface UpsertError {
+  id: string;
+  error: string;
+}
+
+export interface PineconeVector {
+  id: string;
+  values: number[];
+  metadata: Record<string, unknown>;
+}
+
+// Input types for upsert (id is optional, auto-generated if not provided)
+export interface LaundryKnowledgeInput {
+  id?: string;
+  stain_type: string;
+  fabric: string;
+  success_rate: number;
+  risk: 'low' | 'medium' | 'high';
+  content: string;
+}
+
+export interface PartnerShopInput {
+  id?: string;
+  shop_name: string;
+  zipcode: string;
+  subscription: 'active' | 'inactive';
+  specialty: string[];
+  rating?: number;
+}

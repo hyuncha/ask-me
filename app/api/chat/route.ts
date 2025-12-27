@@ -6,6 +6,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 30; // 30초 타임아웃
 
 export async function POST(request: NextRequest) {
+  // 환경 변수 디버깅 (민감값 마스킹)
+  console.log('ENV check - OPENROUTER_API_KEY set:', !!process.env.OPENROUTER_API_KEY);
+
   try {
     const body: ChatRequest = await request.json();
 
@@ -32,11 +35,20 @@ export async function POST(request: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
 
-    // OpenRouter API 키 문제
+    // OpenRouter API 키 미설정 - 400으로 반환
     if (errorMessage.includes('OPENROUTER_API_KEY')) {
       return NextResponse.json(
-        { error: 'API 설정이 필요합니다. 관리자에게 문의하세요.' },
-        { status: 500 }
+        { error: 'OPENROUTER_API_KEY 환경 변수가 설정되지 않았습니다. Vercel Dashboard에서 설정해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // OpenRouter API 호출 실패 (401, 403 등)
+    if (errorMessage.includes('OpenRouter API error')) {
+      console.error('OpenRouter API call failed:', errorMessage);
+      return NextResponse.json(
+        { error: 'OpenRouter API 호출 실패. API 키를 확인해주세요.' },
+        { status: 502 }
       );
     }
 

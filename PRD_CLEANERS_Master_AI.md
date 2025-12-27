@@ -43,7 +43,7 @@ Response (Answer + Recommended Shops)
 
 ### Frontend / Backend (Unified)
 
-- **Next.js 14+ (App Router)**
+- **Next.js 20+ (App Router)**
 - TypeScript
 - Server Actions / Route Handlers
 - Edge Runtime (가능한 범위)
