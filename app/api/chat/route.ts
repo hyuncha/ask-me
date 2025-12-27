@@ -6,8 +6,10 @@ export const runtime = 'nodejs';
 export const maxDuration = 30; // 30초 타임아웃
 
 export async function POST(request: NextRequest) {
-  // 환경 변수 디버깅 (민감값 마스킹)
-  console.log('ENV check - OPENROUTER_API_KEY set:', !!process.env.OPENROUTER_API_KEY);
+  // 환경 변수 디버깅 (앞 15자만 표시)
+  const apiKey = process.env.OPENROUTER_API_KEY || '';
+  console.log('ENV check - OPENROUTER_API_KEY:', apiKey ? `${apiKey.substring(0, 15)}...` : 'NOT SET');
+  console.log('ENV check - Key length:', apiKey.length);
 
   try {
     const body: ChatRequest = await request.json();
